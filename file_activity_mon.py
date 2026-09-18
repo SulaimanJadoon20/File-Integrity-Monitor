@@ -63,35 +63,6 @@ def hasher(file_address):
         console.print("NEW HASH:",style="bold italic yellow")
         console.print(hashed,style="bold yellow")
         return hashed
-    
-def old_files(tar_path):
-    if os.path.isdir(tar_path):
-        try:
-            for root, dirs, files in os.walk(tar_path):
-                for file in files:
-                    if file=="my_db" or file=="my_db-journal":
-                        continue
-                    try:
-                        file_address=os.path.join(root,file)
-                        hashed=hasher(file_address)
-                    except Exception as e:
-                        console.print(f"[bold red]ERROR:[/bold red][bold italic red]Could not access the file {file_address} --> {e}[/bold italic red]")
-                    else:
-                        activity="GETTING OLD RECORDS"
-                        status="OLD FILE"
-                        add_in_db(file_address, activity, status, hashed,path)
-        except Exception as e:
-            console.print(f"[bold red]ERROR:[/bold red] [bold italic red]Could not access the targated Directory. --> {e}[/bold italic red]")
-
-    if os.path.isfile(tar_path):
-        try:
-            hashed=hasher(tar_path)
-        except Exception as e:
-            console.print(f"[bold red]ERROR:[/bold red][bold italic red]Could not access the file {tar_path} --> {e}[/bold italic red]")
-        else:
-            activity="GETTING OLD RECORDS"
-            status="OLD FILE"
-            add_in_db(tar_path, activity, status, hashed,path)
 
 def get_hash(file_address,path):
     try:
@@ -124,6 +95,44 @@ def comp(row,hashed):
         console.print("CONTEXT NOT CHANGED.",style="bold italic white")
         status="CONTEXT NOT CHANGED"
     return status
+
+def old_files(tar_path):
+    if os.path.isdir(tar_path):
+        try:
+            for root, dirs, files in os.walk(tar_path):
+                for file in files:
+                    if file=="my_db" or file=="my_db-journal":
+                        continue
+                    try:
+                        file_address=os.path.join(root,file)
+                        hashed=hasher(file_address)
+                        row=get_hash(file_address,path)
+                        status=comp(row,hashed)
+                    except Exception as e:
+                        console.print(f"[bold red]ERROR:[/bold red][bold italic red]Could not access the file {file_address} --> {e}[/bold italic red]")
+                    else:
+                        if status=="CONTEXT NOT CHANGED":
+                            continue
+                        activity="GETTING OLD RECORDS"
+                        status="OLD FILE"    
+                        add_in_db(file_address, activity, status, hashed,path)
+        except Exception as e:
+            console.print(f"[bold red]ERROR:[/bold red] [bold italic red]Could not access the targated Directory. --> {e}[/bold italic red]")
+
+    if os.path.isfile(tar_path):
+        try:
+            hashed=hasher(tar_path)
+            row=get_hash(tar_path,path)
+            status=comp(row,hashed)
+        except Exception as e:
+            console.print(f"[bold red]ERROR:[/bold red][bold italic red]Could not access the file {tar_path} --> {e}[/bold italic red]")
+        else:
+            if status=="CONTEXT NOT CHANGED":
+                return
+            activity="GETTING OLD RECORDS"
+            status="OLD FILE"
+            add_in_db(tar_path, activity, status, hashed,path)
+
 
 class my_handler(FileSystemEventHandler):
     def on_created(self, event):
@@ -161,13 +170,13 @@ class my_handler(FileSystemEventHandler):
     def on_moved(self, event):
         if os.path.isdir(event.src_path):
             return
-        path=event.src_path+" ---> "+event.dest_path
-        console.print(f"{path} ---> MOVED.",style="bold italic blue")
+        move_path=event.src_path+" ---> "+event.dest_path
+        console.print(f"{move_path} ---> MOVED.",style="bold italic blue")
         file_addr=event.dest_path
         hashed=hasher(file_addr)
         activity="MOVED"
         status="NO CHANGE."
-        add_in_db(path, activity, status, hashed,path)
+        add_in_db(move_path, activity, status, hashed,path)
 
     def on_deleted(self, event):
         file_name=os.path.basename(event.src_path)
